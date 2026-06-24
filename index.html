@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inhouse-Stückliste</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --brand:       #0f6cbd;
+    --brand-dark:  #0c5a9e;
+    --brand-light: #e8f3fb;
+    --success:     #107c10;
+    --warn:        #d83b01;
+    --gray-1:      #f5f5f5;
+    --gray-2:      #e0e0e0;
+    --gray-3:      #888;
+    --text:        #1a1a1a;
+    --radius:      8px;
+    --shadow:      0 2px 8px rgba(0,0,0,.12);
+  }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--gray-1); color: var(--text); min-height: 100vh; }
+  header { background: var(--brand); color: #fff; padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow); position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 17px; font-weight: 600; letter-spacing: .3px; }
+  main { max-width: 1000px; margin: 28px auto; padding: 0 16px 60px; }
+  .card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 20px; }
+  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--brand); border-bottom: 1px solid var(--gray-2); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
+  label { font-size: 12px; font-weight: 600; color: var(--gray-3); text-transform: uppercase; letter-spacing: .4px; }
+  select, input[type=text], input[type=number] {
+    border: 1px solid var(--gray-2); border-radius: 5px; padding: 8px 10px;
+    font-size: 14px; font-family: inherit; background: #fff; color: var(--text); transition: border-color .15s;
+  }
+  select:focus, input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(15,108,189,.12); }
+  input[readonly], select[disabled] { background: var(--gray-1); color: var(--gray-3); cursor: default; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 5px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: background .15s, opacity .15s; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--brand); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--brand-dark); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-success:hover:not(:disabled) { background: #0a5e0a; }
+  .btn-ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+  .btn-ghost:hover:not(:disabled) { background: var(--brand-light); }
+  .btn-warn { background: var(--warn); color: #fff; }
+  .btn-warn:hover:not(:disabled) { background: #b33000; }
+  .btn-danger { background: transparent; color: var(--warn); border: 1px solid var(--warn); padding: 4px 10px; font-size: 13px; }
+  .btn-danger:hover:not(:disabled) { background: #fdf0ec; }
+  .action-bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; }
+  #seminarSearchWrapper { position: relative; }
+  #seminarSearchInput { width: 100%; }
+  .search-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid var(--gray-2); border-top: none; border-radius: 0 0 6px 6px; max-height: 220px; overflow-y: auto; z-index: 50; box-shadow: var(--shadow); display: none; }
+  .search-dropdown.open { display: block; }
+  .search-item { padding: 9px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--gray-1); }
+  .search-item:hover, .search-item.highlighted { background: var(--brand-light); }
+  .search-item .item-no { font-weight: 600; color: var(--brand); margin-right: 8px; }
+  .bom-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .bom-table th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--gray-3); padding: 6px 10px; border-bottom: 2px solid var(--gray-2); }
+  .bom-table td { padding: 8px 10px; border-bottom: 1px solid var(--gray-1); vertical-align: middle; }
+  .bom-table tr:last-child td { border-bottom: none; }
+  .bom-table input[type=number] { width: 75px; text-align: right; }
+  .bom-table input[type=text] { width: 100%; }
+  .empty-msg { text-align: center; color: var(--gray-3); padding: 28px; font-size: 14px; }
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+  .status-open       { background: #eee; color: #555; }
+  .status-released   { background: #dff0d8; color: #2d6a2d; }
+  .status-distributed{ background: #d9edf7; color: #1a5276; }
+  .status-pickcreated{ background: #fef9e7; color: #7d6608; }
+  #toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: #222; color: #fff; padding: 12px 22px; border-radius: 6px; font-size: 14px; opacity: 0; transition: opacity .25s, transform .25s; z-index: 999; max-width: 440px; text-align: center; pointer-events: none; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.success { background: var(--success); }
+  #toast.error   { background: var(--warn); }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 600px) { .form-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<script>
+const CONFIG = { workerBase: 'https://warenentnahme-api.andrea-reichert.workers.dev' };
+</script>
+
+<header>
+  <h1>Inhouse-Seminare · Projektstückliste</h1>
+</header>
+
+<main>
+
+  <!-- 1 · Seminar auswählen -->
+  <div class="card">
+    <div class="card-title">1 · Seminar auswählen</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:3">
+        <label>Seminar-Nr. oder Bezeichnung</label>
+        <div id="seminarSearchWrapper">
+          <input id="seminarSearchInput" type="text" placeholder="Eintippen zum Suchen…"
+                 oninput="onSeminarSearch()" onkeydown="onSeminarKey(event)" autocomplete="off" />
+          <div id="seminarDropdown" class="search-dropdown"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-row" id="seminarDetails" style="display:none">
+      <div class="form-group">
+        <label>Themen-ID</label>
+        <input id="fldTopicCode" type="text" readonly />
+      </div>
+      <div class="form-group" style="flex:2">
+        <label>Seminarname</label>
+        <input id="fldDescription" type="text" readonly />
+      </div>
+      <div class="form-group">
+        <label>Seminardatum</label>
+        <input id="fldStartDate" type="text" readonly />
+      </div>
+      <div class="form-group">
+        <label>Format</label>
+        <input id="fldFormat" type="text" readonly />
+      </div>
+      <div class="form-group">
+        <label>Kanal</label>
+        <input id="fldChannel" type="text" readonly />
+      </div>
+      <div class="form-group">
+        <label>Anz. Teilnehmer</label>
+        <input id="fldParticipants" type="text" readonly />
+      </div>
+      <div class="form-group">
+        <label>BOM-Status</label>
+        <span id="fldBOMStatus" class="status-badge" style="margin-top:5px"></span>
+      </div>
+      <div class="form-group">
+        <label>Lagerkommissionierung</label>
+        <input id="fldPickNo" type="text" readonly />
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 · Stückliste bearbeiten -->
+  <div class="card" id="bomCard" style="display:none">
+    <div class="card-title">
+      <span>2 · Projektstückliste</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="loadBOM()">↻ Aktualisieren</button>
+      </div>
+    </div>
+    <div id="bomTableContainer"><p class="empty-msg">Stückliste wird geladen…</p></div>
+
+    <!-- Neue Zeile einfügen -->
+    <div id="addLineRow" style="display:none;margin-top:16px;border-top:1px solid var(--gray-2);padding-top:16px">
+      <div class="form-row" style="align-items:flex-end">
+        <div class="form-group" style="flex:2; position:relative">
+          <label>Artikel</label>
+          <input id="newItemInput" type="text" placeholder="Nr. oder Bezeichnung…"
+                 oninput="onNewItemSearch()" onkeydown="onNewItemKey(event)" autocomplete="off" />
+          <div id="newItemDropdown" class="search-dropdown"></div>
+        </div>
+        <div class="form-group" style="flex:0 0 90px">
+          <label>Menge/Projekt</label>
+          <input id="newQtyJob" type="number" min="0" step="1" value="0" />
+        </div>
+        <div class="form-group" style="flex:0 0 110px">
+          <label>Menge/Teilnehmer</label>
+          <input id="newQtyParticipant" type="number" min="0" step="1" value="0" />
+        </div>
+        <div style="padding-bottom:1px">
+          <button class="btn btn-primary" onclick="addBOMLine()">+ Hinzufügen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aktionen -->
+    <div class="action-bar">
+      <button class="btn btn-warn" id="btnReset" onclick="doBOMAction('reset')" style="display:none">↩ Status zurücksetzen</button>
+      <button class="btn btn-ghost" id="btnRelease" onclick="doBOMAction('release')" style="display:none">✓ Freigeben</button>
+      <button class="btn btn-primary" id="btnDistribute" onclick="doBOMAction('distribute')" style="display:none">⬇ Auf Teilnehmer verteilen</button>
+      <button class="btn btn-success" id="btnPick" onclick="doBOMAction('pick')" style="display:none">📦 Lagerkommissionierung erstellen</button>
+    </div>
+  </div>
+
+</main>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────
+let allItems = [];
+let filteredSeminars = [];
+let selectedSeminar = null;
+let seminarHighlight = -1;
+let filteredNewItems = [];
+let selectedNewItem = null;
+let newItemHighlight = -1;
+let currentBOM = null; // { header, lines: [] }
+
+// ── Worker helpers ─────────────────────────────────────────────────────
+async function wGet(path) {
+  const r = await fetch(`${CONFIG.workerBase}${path}`);
+  if (!r.ok) throw new Error(`Worker ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+async function wPost(path, body) {
+  const r = await fetch(`${CONFIG.workerBase}${path}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) throw new Error(`Worker ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+async function wPatch(path, body) {
+  const r = await fetch(`${CONFIG.workerBase}${path}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', 'If-Match': '*' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`Worker ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+async function wDelete(path) {
+  const r = await fetch(`${CONFIG.workerBase}${path}`, { method: 'DELETE', headers: { 'If-Match': '*' } });
+  if (!r.ok) throw new Error(`Worker ${r.status}: ${await r.text()}`);
+  return {};
+}
+
+// ── Bootstrap ──────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const data = await wGet('/items');
+    allItems = data.value || [];
+  } catch (e) {
+    showToast('Artikelkatalog konnte nicht geladen werden: ' + e.message, 'error');
+  }
+})();
+
+// ── Seminar-Suche ──────────────────────────────────────────────────────
+let seminarSearchTimer;
+function onSeminarSearch() {
+  clearTimeout(seminarSearchTimer);
+  seminarSearchTimer = setTimeout(doSeminarSearch, 350);
+}
+
+async function doSeminarSearch() {
+  const q = document.getElementById('seminarSearchInput').value.trim();
+  const dd = document.getElementById('seminarDropdown');
+  selectedSeminar = null;
+  seminarHighlight = -1;
+  hideSeminarDetails();
+  if (q.length < 2) { dd.classList.remove('open'); dd.innerHTML = ''; return; }
+  try {
+    const data = await wGet(`/seminars?search=${encodeURIComponent(q)}`);
+    filteredSeminars = data.value || [];
+    if (filteredSeminars.length === 0) {
+      dd.innerHTML = '<div class="search-item" style="color:var(--gray-3)">Keine Inhouse-Seminare gefunden</div>';
+    } else {
+      dd.innerHTML = filteredSeminars.map((s, i) =>
+        `<div class="search-item" data-idx="${i}" onmousedown="selectSeminar(${i})">
+           <span class="item-no">${esc(s.no)}</span>${esc(s.description || '')}
+           <span style="float:right;color:var(--gray-3);font-size:12px">${s.startingDate ? s.startingDate.substring(0,10) : ''}</span>
+         </div>`
+      ).join('');
+    }
+    dd.classList.add('open');
+  } catch (e) {
+    showToast('Suche fehlgeschlagen: ' + e.message, 'error');
+  }
+}
+
+function onSeminarKey(e) {
+  const items = document.querySelectorAll('#seminarDropdown .search-item[data-idx]');
+  if (e.key === 'ArrowDown') { e.preventDefault(); seminarHighlight = Math.min(seminarHighlight + 1, items.length - 1); refreshHighlight(items, seminarHighlight); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); seminarHighlight = Math.max(seminarHighlight - 1, 0); refreshHighlight(items, seminarHighlight); }
+  else if (e.key === 'Enter' && seminarHighlight >= 0) selectSeminar(seminarHighlight);
+  else if (e.key === 'Escape') document.getElementById('seminarDropdown').classList.remove('open');
+}
+
+function refreshHighlight(items, idx) {
+  items.forEach((el, i) => el.classList.toggle('highlighted', i === idx));
+  if (idx >= 0) items[idx].scrollIntoView({ block: 'nearest' });
+}
+
+async function selectSeminar(idx) {
+  selectedSeminar = filteredSeminars[idx];
+  document.getElementById('seminarSearchInput').value = `${selectedSeminar.no} · ${selectedSeminar.description || ''}`;
+  document.getElementById('seminarDropdown').classList.remove('open');
+  showSeminarDetails(selectedSeminar);
+  await loadBOM();
+}
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('seminarSearchWrapper').contains(e.target))
+    document.getElementById('seminarDropdown').classList.remove('open');
+  const nw = document.getElementById('newItemInput');
+  if (nw && !nw.parentElement.contains(e.target))
+    document.getElementById('newItemDropdown').classList.remove('open');
+});
+
+// ── Seminar-Details anzeigen ───────────────────────────────────────────
+function showSeminarDetails(s) {
+  document.getElementById('fldTopicCode').value   = s.topicCode || '';
+  document.getElementById('fldDescription').value = s.description || '';
+  document.getElementById('fldStartDate').value   = s.startingDate ? s.startingDate.substring(0,10) : '';
+  document.getElementById('fldFormat').value      = s.formatType || '';
+  document.getElementById('fldChannel').value     = s.channelType || '';
+  document.getElementById('fldParticipants').value = s.noOfParticipants ?? '';
+  document.getElementById('fldPickNo').value      = s.pickNo || '';
+  setStatusBadge(s.bomStatus || 'Open');
+  document.getElementById('seminarDetails').style.display = '';
+  document.getElementById('bomCard').style.display = '';
+}
+
+function hideSeminarDetails() {
+  document.getElementById('seminarDetails').style.display = 'none';
+  document.getElementById('bomCard').style.display = 'none';
+  currentBOM = null;
+}
+
+function setStatusBadge(status) {
+  const el = document.getElementById('fldBOMStatus');
+  const classMap = { Open: 'status-open', Released: 'status-released', Distributed: 'status-distributed', PickCreated: 'status-pickcreated' };
+  const labelMap = { Open: 'Offen', Released: 'Freigegeben', Distributed: 'Verteilt', PickCreated: 'Lagerkomm. erstellt' };
+  el.className = 'status-badge ' + (classMap[status] || 'status-open');
+  el.textContent = labelMap[status] || status;
+}
+
+// ── BOM laden ─────────────────────────────────────────────────────────
+async function loadBOM() {
+  if (!selectedSeminar) return;
+  const container = document.getElementById('bomTableContainer');
+  container.innerHTML = '<p class="empty-msg">Wird geladen…</p>';
+  try {
+    const data = await wGet(`/bom/${encodeURIComponent(selectedSeminar.no)}`);
+    currentBOM = { header: data, lines: (data.jobBomLines || data.value || []) };
+    renderBOM();
+    updateButtons(data.status || 'Open');
+  } catch (e) {
+    container.innerHTML = `<p class="empty-msg" style="color:var(--warn)">Stückliste konnte nicht geladen werden: ${esc(e.message)}</p>`;
+  }
+}
+
+function renderBOM() {
+  const container = document.getElementById('bomTableContainer');
+  const status = currentBOM.header.status || 'Open';
+  const editable = status === 'Open';
+
+  document.getElementById('addLineRow').style.display = editable ? '' : 'none';
+
+  if (!currentBOM.lines.length) {
+    container.innerHTML = '<p class="empty-msg">Keine Stücklistenzeilen vorhanden.</p>';
+    return;
+  }
+
+  const seminarTopicCode = selectedSeminar ? (selectedSeminar.topicCode || '') : '';
+  container.innerHTML = `
+    <table class="bom-table">
+      <thead>
+        <tr>
+          <th>Artikel-Nr.</th>
+          <th>Bezeichnung</th>
+          <th>Einheit</th>
+          <th>Menge/Projekt</th>
+          <th>Menge/Teilnehmer</th>
+          <th title="Herkunfts-Stückliste: 'Allgemein' = Standard-Seminar-BOM; Themencode = themenspezifische BOM">Herkunft</th>
+          ${editable ? '<th></th>' : ''}
+        </tr>
+      </thead>
+      <tbody>
+        ${currentBOM.lines.map((l, i) => {
+          const src = l.sourceTopicCode || '';
+          const isTopicSpecific = src === seminarTopicCode && src !== '';
+          const sourceLabel = isTopicSpecific
+            ? `<span style="font-size:12px;color:var(--brand)" title="Themenspezifische BOM (${esc(src)})">${esc(src)}</span>`
+            : `<span style="font-size:12px;color:var(--gray-3)" title="Allgemeine Standard-Beistellung zum Seminar">Allgemein</span>`;
+          return `
+          <tr>
+            <td><strong>${esc(l.no)}</strong></td>
+            <td>${esc(l.description)}</td>
+            <td>${esc(l.unitOfMeasureCode)}</td>
+            <td>${editable
+              ? `<input type="number" min="0" step="1" value="${l.quantityPerJob}"
+                        onchange="updateBOMLine(${i}, 'quantityPerJob', +this.value)" />`
+              : l.quantityPerJob}</td>
+            <td>${editable
+              ? `<input type="number" min="0" step="1" value="${l.quantityPerParticipant}"
+                        onchange="updateBOMLine(${i}, 'quantityPerParticipant', +this.value)" />`
+              : l.quantityPerParticipant}</td>
+            <td>${sourceLabel}</td>
+            ${editable ? `<td><button class="btn btn-danger" onclick="deleteBOMLine(${i})">✕</button></td>` : ''}
+          </tr>`; }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── BOM-Zeile bearbeiten ───────────────────────────────────────────────
+async function updateBOMLine(idx, field, value) {
+  const line = currentBOM.lines[idx];
+  try {
+    await wPatch(`/bom/${encodeURIComponent(selectedSeminar.no)}/lines/${line.lineNo}`, { [field]: value });
+    line[field] = value;
+  } catch (e) {
+    showToast('Fehler beim Speichern: ' + e.message, 'error');
+    await loadBOM();
+  }
+}
+
+async function deleteBOMLine(idx) {
+  const line = currentBOM.lines[idx];
+  try {
+    await wDelete(`/bom/${encodeURIComponent(selectedSeminar.no)}/lines/${line.lineNo}`);
+    currentBOM.lines.splice(idx, 1);
+    renderBOM();
+  } catch (e) {
+    showToast('Fehler beim Löschen: ' + e.message, 'error');
+  }
+}
+
+// ── Neue Zeile: Artikelsuche ───────────────────────────────────────────
+function onNewItemSearch() {
+  const q = document.getElementById('newItemInput').value.trim().toLowerCase();
+  const dd = document.getElementById('newItemDropdown');
+  selectedNewItem = null;
+  newItemHighlight = -1;
+  if (q.length < 1) { dd.classList.remove('open'); dd.innerHTML = ''; return; }
+  filteredNewItems = allItems.filter(i =>
+    i.no.toLowerCase().includes(q) || (i.description || '').toLowerCase().includes(q)
+  ).slice(0, 40);
+  if (!filteredNewItems.length) {
+    dd.innerHTML = '<div class="search-item" style="color:var(--gray-3)">Keine Artikel gefunden</div>';
+  } else {
+    dd.innerHTML = filteredNewItems.map((i, idx) =>
+      `<div class="search-item" data-idx="${idx}" onmousedown="selectNewItem(${idx})">
+         <span class="item-no">${esc(i.no)}</span>${esc(i.description || '')}
+         <span style="color:var(--gray-3);font-size:12px;margin-left:6px">${esc(i.baseUnitOfMeasure||'')}</span>
+       </div>`
+    ).join('');
+  }
+  dd.classList.add('open');
+}
+
+function onNewItemKey(e) {
+  const items = document.querySelectorAll('#newItemDropdown .search-item[data-idx]');
+  if (e.key === 'ArrowDown') { e.preventDefault(); newItemHighlight = Math.min(newItemHighlight + 1, items.length - 1); refreshHighlight(items, newItemHighlight); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); newItemHighlight = Math.max(newItemHighlight - 1, 0); refreshHighlight(items, newItemHighlight); }
+  else if (e.key === 'Enter' && newItemHighlight >= 0) selectNewItem(newItemHighlight);
+  else if (e.key === 'Escape') document.getElementById('newItemDropdown').classList.remove('open');
+}
+
+function selectNewItem(idx) {
+  selectedNewItem = filteredNewItems[idx];
+  document.getElementById('newItemInput').value = `${selectedNewItem.no} · ${selectedNewItem.description || ''}`;
+  document.getElementById('newItemDropdown').classList.remove('open');
+  document.getElementById('newQtyJob').focus();
+}
+
+async function addBOMLine() {
+  if (!selectedNewItem) { showToast('Bitte zuerst einen Artikel auswählen.', 'error'); return; }
+  const qtyJob = parseFloat(document.getElementById('newQtyJob').value) || 0;
+  const qtyPart = parseFloat(document.getElementById('newQtyParticipant').value) || 0;
+  if (qtyJob === 0 && qtyPart === 0) { showToast('Bitte mindestens eine Menge > 0 eingeben.', 'error'); return; }
+
+  try {
+    await wPost(`/bom/${encodeURIComponent(selectedSeminar.no)}/lines`, {
+      no: selectedNewItem.no,
+      quantityPerJob: qtyJob,
+      quantityPerParticipant: qtyPart,
+    });
+    selectedNewItem = null;
+    document.getElementById('newItemInput').value = '';
+    document.getElementById('newQtyJob').value = '0';
+    document.getElementById('newQtyParticipant').value = '0';
+    await loadBOM();
+    showToast('Zeile hinzugefügt.', 'success');
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
+// ── Aktionen (Freigeben, Verteilen, …) ────────────────────────────────
+function updateButtons(status) {
+  setStatusBadge(status);
+  document.getElementById('fldPickNo').value = currentBOM?.header?.pickNo || '';
+
+  const show = id => document.getElementById(id).style.display = '';
+  const hide = id => document.getElementById(id).style.display = 'none';
+
+  hide('btnReset'); hide('btnRelease'); hide('btnDistribute'); hide('btnPick');
+  document.getElementById('addLineRow').style.display = status === 'Open' ? '' : 'none';
+
+  switch (status) {
+    case 'Open':        show('btnRelease'); break;
+    case 'Released':    show('btnReset'); show('btnDistribute'); break;
+    case 'Distributed': show('btnReset'); show('btnPick'); break;
+    case 'PickCreated': show('btnReset'); break;
+  }
+}
+
+async function doBOMAction(action) {
+  const labelMap = { release: 'Freigeben', distribute: 'Verteilen', reset: 'Status zurücksetzen', pick: 'Lagerkommissionierung erstellen' };
+  const btnId = { release: 'btnRelease', distribute: 'btnDistribute', reset: 'btnReset', pick: 'btnPick' }[action];
+  const btn = document.getElementById(btnId);
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Wird ausgeführt…';
+  try {
+    await wPost(`/bom/${encodeURIComponent(selectedSeminar.no)}/${action}`);
+    await loadBOM();
+    showToast(`✓ ${labelMap[action]} erfolgreich.`, 'success');
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origHtml;
+  }
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 4500);
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
