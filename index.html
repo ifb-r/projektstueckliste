@@ -94,8 +94,9 @@ const CONFIG = { workerBase: 'https://warenentnahme-api.andrea-reichert.workers.
       <div class="form-group" style="flex:3">
         <label>Seminar-Nr. oder Bezeichnung</label>
         <div id="seminarSearchWrapper">
-          <input id="seminarSearchInput" type="text" placeholder="Eintippen zum Suchen…"
-                 oninput="onSeminarSearch()" onkeydown="onSeminarKey(event)" autocomplete="off" />
+          <input id="seminarSearchInput" type="text" placeholder="Klicken oder eintippen zum Suchen…"
+                 oninput="onSeminarSearch()" onkeydown="onSeminarKey(event)"
+                 onfocus="onSeminarFocus()" autocomplete="off" />
           <div id="seminarDropdown" class="search-dropdown"></div>
         </div>
       </div>
@@ -239,27 +240,45 @@ function onSeminarSearch() {
   seminarSearchTimer = setTimeout(doSeminarSearch, 350);
 }
 
+function renderSeminarDropdown(items) {
+  const dd = document.getElementById('seminarDropdown');
+  if (items.length === 0) {
+    dd.innerHTML = '<div class="search-item" style="color:var(--gray-3)">Keine Inhouse-Seminare gefunden</div>';
+  } else {
+    dd.innerHTML = items.map((s, i) =>
+      `<div class="search-item" data-idx="${i}" onmousedown="selectSeminar(${i})">
+         <span class="item-no">${esc(s.no)}</span>${esc(s.description || '')}
+         <span style="float:right;color:var(--gray-3);font-size:12px">${s.startingDate ? s.startingDate.substring(0,10) : ''}</span>
+       </div>`
+    ).join('');
+  }
+  dd.classList.add('open');
+}
+
+async function onSeminarFocus() {
+  const dd = document.getElementById('seminarDropdown');
+  if (dd.classList.contains('open')) return;
+  const q = document.getElementById('seminarSearchInput').value.trim();
+  if (q.length >= 2) return;
+  try {
+    const data = await wGet('/seminars');
+    filteredSeminars = data.value || [];
+    renderSeminarDropdown(filteredSeminars);
+  } catch (e) { /* silent on focus */ }
+}
+
 async function doSeminarSearch() {
   const q = document.getElementById('seminarSearchInput').value.trim();
   const dd = document.getElementById('seminarDropdown');
   selectedSeminar = null;
   seminarHighlight = -1;
   hideSeminarDetails();
+  if (q.length === 0) { onSeminarFocus(); return; }
   if (q.length < 2) { dd.classList.remove('open'); dd.innerHTML = ''; return; }
   try {
     const data = await wGet(`/seminars?search=${encodeURIComponent(q)}`);
     filteredSeminars = data.value || [];
-    if (filteredSeminars.length === 0) {
-      dd.innerHTML = '<div class="search-item" style="color:var(--gray-3)">Keine Inhouse-Seminare gefunden</div>';
-    } else {
-      dd.innerHTML = filteredSeminars.map((s, i) =>
-        `<div class="search-item" data-idx="${i}" onmousedown="selectSeminar(${i})">
-           <span class="item-no">${esc(s.no)}</span>${esc(s.description || '')}
-           <span style="float:right;color:var(--gray-3);font-size:12px">${s.startingDate ? s.startingDate.substring(0,10) : ''}</span>
-         </div>`
-      ).join('');
-    }
-    dd.classList.add('open');
+    renderSeminarDropdown(filteredSeminars);
   } catch (e) {
     showToast('Suche fehlgeschlagen: ' + e.message, 'error');
   }
